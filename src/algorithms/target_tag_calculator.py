@@ -49,6 +49,12 @@ class TargetTagCalculator:
         
         # 6. 目标优先级标签
         profile_tags['target_priority_label'] = self._calculate_target_priority(missions)
+
+        # 7. 分辨率要求标签（新增）
+        profile_tags['resolution'] = self._calculate_resolution(missions)
+
+        # 8. 筹划方式标签（新增）
+        profile_tags['mission_play_type'] = self._calculate_mission_play_type(missions)
         
         return profile_tags
     
@@ -150,6 +156,32 @@ class TargetTagCalculator:
             priority_counter[mission.target_priority] += 1
         
         return self._build_top_label_stats(priority_counter, key_name='target_priority_label')
+    
+    def _calculate_resolution(self, missions: List[Any]) -> List[Dict[str, Any]]:
+        """计算分辨率要求标签（按分辨率值聚合，TopN，降序统计）"""
+        resolution_counter = PyCounter()
+
+        for mission in missions:
+            # 分辨率是 float，这里转成字符串作为标签输出
+            resolution_value = getattr(mission, 'resolution', None)
+            if resolution_value is None:
+                continue
+            label = str(resolution_value)
+            resolution_counter[label] += 1
+
+        return self._build_top_label_stats(resolution_counter, key_name='resolution')
+
+    def _calculate_mission_play_type(self, missions: List[Any]) -> List[Dict[str, Any]]:
+        """计算筹划方式标签（按筹划方式聚合，TopN，降序统计）"""
+        play_type_counter = PyCounter()
+
+        for mission in missions:
+            play_type = getattr(mission, 'mission_play_type', None)
+            if not play_type:
+                play_type = "未知筹划方式"
+            play_type_counter[play_type] += 1
+
+        return self._build_top_label_stats(play_type_counter, key_name='mission_play_type')
     
     def _build_top_label_stats(self, counter: PyCounter, key_name: str) -> List[Dict[str, Any]]:
         """根据标签计数生成TopN统计"""

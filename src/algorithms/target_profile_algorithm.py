@@ -81,6 +81,8 @@ class TargetProfileAlgorithm:
     
     def _filter_missions_by_time(self, missions: List[Mission], start_time: str = None, end_time: str = None) -> List[Mission]:
         """根据时间范围过滤任务"""
+        from datetime import datetime
+        
         def parse_time(time_str: str) -> datetime:
             """解析时间字符串"""
             if not time_str:

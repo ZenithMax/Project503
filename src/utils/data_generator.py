@@ -139,7 +139,7 @@ def generate_smart_data(
         countries = ["目标国A", "目标国B", "目标国C", "目标国D", "目标国E", "目标国F"]
         task_types = ["1", "2", "3", "4", "5"]
         task_scenes = ["海上", "陆地", "空中", "太空", "网络"]
-        req_cycles = ["一周", "两周", "三周", "一个月", "三个月", "半年", "一年"]
+        req_cycles = ["1", "2", "3", "4", "5"]
         mission_play_types = ["自动筹划", "半自动筹划", "人工筹划"]
     else:
         # 大规模：扩展配置
@@ -149,7 +149,7 @@ def generate_smart_data(
         countries = ["目标国A", "目标国B", "目标国C", "目标国D", "目标国E", "目标国F", "目标国G", "目标国H"]
         task_types = ["1", "2", "3", "4", "5"]
         task_scenes = ["海上", "陆地", "空中", "太空", "网络", "联合", "多域"]
-        req_cycles = ["一周", "两周", "三周", "一个月", "两个月", "三个月", "半年", "一年", "两年"]
+        req_cycles = ["1", "2", "3", "4", "5"]
         mission_play_types = ["自动筹划", "半自动筹划", "人工筹划", "智能筹划"]
     
     emcon_options = ["是", "否"]
@@ -264,7 +264,7 @@ def generate_smart_data(
             
             # 生成新字段数据
             req_cycle_val = random.choice(req_cycles)
-            cycle_time = random.randint(1, 3)
+            cycle_time = random.randint(1, 5)
             req_times_val = random.randint(1, 10)
             
             mission = Mission(
@@ -284,7 +284,7 @@ def generate_smart_data(
                 task_scene=random.choice(task_scenes),
                 resolution=round(random.uniform(0.5, 1.0), 2),
                 req_cycle=req_cycle_val,
-                req_cycle_time=str(cycle_time),
+                req_cycle_time=cycle_time,
                 req_times=req_times_val,
                 mission_play_type=random.choice(mission_play_types)
             )

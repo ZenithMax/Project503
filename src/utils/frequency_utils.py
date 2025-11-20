@@ -93,15 +93,15 @@ def _safe_positive_int(value: Optional[object]) -> Optional[int]:
 
 
 def _build_cycle_label(req_cycle: Optional[str], req_cycle_time: Optional[object]) -> Tuple[float, str]:
-    """返回 (频率值, 文字标签)。标签直接拼接周期与次数。"""
+    """返回 (频率值, 文字标签)。标签格式为 \"req_cycle,req_cycle_time\"（英文逗号）。"""
     
     cycle_count = _safe_positive_int(req_cycle_time)
     if not req_cycle or not cycle_count:
         return 0.0, "无周期需求"
     
     cycle_text = req_cycle.strip()
-    normalized = _normalize_cycle_text(cycle_text)
-    label = f"{normalized}{cycle_count}次"
+    # 新格式：直接使用 req_cycle 和 req_cycle_time，用英文逗号分隔
+    label = f"{cycle_text},{cycle_count}"
     return float(cycle_count), label
 
 
@@ -135,7 +135,7 @@ def _build_req_times_label(req_times: Optional[object], cycle_freq_value: float)
         return cycle_freq_value, "频率未指定"
     
     freq_value = float(req_times_val)
-    label = f"周期频次为{req_times_val}"
+    label = str(req_times_val)
     return freq_value, label
 
 
