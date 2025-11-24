@@ -4,6 +4,7 @@ from .user_persona_algorithm import UserPersonaAlgorithm, user_persona_algorithm
 from .target_profile_algorithm import TargetProfileAlgorithm, target_profile_algorithm_api
 from .persona_tag_calculator import PersonaTagCalculator
 from .target_tag_calculator import TargetTagCalculator
+from .recommendation_algorithm import VirtualTaskRecommendationAlgorithm
 from .clustering import (
     DBSCANClustering,
     cluster_coordinates,
@@ -15,10 +16,11 @@ from .clustering import (
 __all__ = [
     "UserPersonaAlgorithm",
     "user_persona_algorithm_api",
-    "TargetProfileAlgorithm", 
+    "TargetProfileAlgorithm",
     "target_profile_algorithm_api",
     "PersonaTagCalculator",
     "TargetTagCalculator",
+    "VirtualTaskRecommendationAlgorithm",
     "DBSCANClustering",
     "cluster_coordinates",
     "haversine_distance_km",

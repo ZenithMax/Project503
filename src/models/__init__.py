@@ -8,11 +8,17 @@ from .target_info import TargetInfo, Group, Trajectory
 from .user_persona import UserPersona
 from .target_profile import TargetProfile
 
+# DTO模型
+from .scout_node_input_dto import ScoutNodeInputDto
+from .virtual_task import VirtualTask
+
 __all__ = [
     "Mission", 
     "TargetInfo", 
     "Group", 
     "Trajectory",
     "UserPersona",
-    "TargetProfile"
+    "TargetProfile",
+    "ScoutNodeInputDto",
+    "VirtualTask",
 ]
