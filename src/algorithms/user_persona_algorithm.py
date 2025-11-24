@@ -21,26 +21,31 @@ class UserPersonaAlgorithm:
                             params: Dict[str, Any] = None) -> List[UserPersona]:
         """
         生成用户画像
+        
         :param target_info: 目标信息数据列表
         :param mission: 历史需求数据列表
         :param start_time: 开始时间（可选，格式：YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS）
         :param end_time: 结束时间（可选，格式：YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS）
-        :param algorithm: 算法配置参数（可选）
-            - preference_algorithm: 偏好计算算法
-                - 'auto': 自动选择（根据数据特征）[默认]
-                    - HHI > 0.05: percentage
-                    - HHI ≤ 0.05 时:
-                        - 用户≥10 + 目标≥20: tfidf
-                        - 用户≥5 + 目标≥10 + CV>1.0: bm25
-                        - 用户≥5 + 目标≥10 + CV≤1.0: tfidf
-                        - 目标≥5: zscore
-                        - 目标<5: percentage
-                - 'percentage': 简单百分比Top-N
-                - 'tfidf': TF-IDF算法（需全局统计，识别用户特有偏好）
-                - 'bm25': BM25算法（需全局统计，考虑饱和度）
-                - 'zscore': Z-score显著性过滤（单用户统计检验）
-            - top_n: 输出前N个结果，默认3
-        :param params: 扩充参数（预留）
+        :param algorithm: 算法配置（可选），常用参数：{
+                'preference_algorithm': 'auto',  # 算法选择：auto/percentage/tfidf/bm25/zscore
+                'top_n': 3,                      # 返回Top-N结果（通用）
+                'target_top_n': 50,              # 侦察目标占比的Top-N
+                'hhi_threshold': 0.05,           # HHI集中度阈值
+                'cv_threshold': 1.0,             # 变异系数阈值
+                'zscore_threshold': 1.0,         # Z-score阈值（用于zscore算法）
+                'tfidf_smoothing': 1.0,          # TF-IDF平滑（用于tfidf算法）
+                'bm25_k1': 1.5,                  # BM25饱和度（用于bm25算法）
+                'bm25_b': 0.75,                  # BM25归一化（用于bm25算法）
+
+                # auto模式的触发条件（仅'auto'模式需要）
+                'auto_tfidf_min_users': 10,
+                'auto_tfidf_min_targets': 20,
+                'auto_bm25_min_users': 5,
+                'auto_bm25_min_targets': 10,
+                'auto_zscore_min_targets': 5
+            }
+
+        :param params: 扩充参数
         :return: 用户画像结果列表
         """
         
@@ -67,6 +72,7 @@ class UserPersonaAlgorithm:
             filtered_mission = self._filter_missions_by_time(mission, start_time, end_time)
             if len(filtered_mission) < len(mission):
                 self.logger.info(f"时间过滤后保留 {len(filtered_mission)} 条需求")
+            
             mission = filtered_mission
             
             # 3. 计算全局统计（用于TF-IDF/BM25算法）
@@ -76,28 +82,43 @@ class UserPersonaAlgorithm:
                 self.logger.info(f"全局统计: {global_stats['total_users']}个用户, "
                                f"平均每用户{global_stats['avg_mission_count']:.1f}条任务")
             
-            # 4. 创建标签计算器（传入算法配置）
+            # 4. 检查是否提供了预计算的空间聚类结果
+            spatial_cluster_map = algorithm.get('spatial_cluster_map', {})
+            if spatial_cluster_map:
+                cluster_count = len(set(spatial_cluster_map.values()))
+                self.logger.info(f"使用预计算的空间聚类: {len(spatial_cluster_map)}个目标, {cluster_count}个簇")
+            else:
+                self.logger.warning("未提供空间聚类结果，preferred_regions标签将为空")
+            
+            # 5. 创建标签计算器（传入算法配置）
             tag_calculator = PersonaTagCalculator(algorithm_config=algorithm)
             
-            # 5. 按用户分组处理
+            # 6. 按用户分组处理
             user_personas = []
             user_groups = self._group_missions_by_user(mission, target_info)
             
             for user_key, (user_id, user_missions, related_targets) in user_groups.items():
                 self.logger.info(f"处理用户 {user_key}, 相关需求数量: {len(user_missions)}")
                 
-                # 6. 使用统计规则生成画像标签
+                # 7. 使用统计规则生成画像标签
                 persona_tags = tag_calculator.generate_persona_tags(
                     user_missions, related_targets
                 )
                 
                 self.logger.info(f"用户 {user_key} 画像标签生成完成")
                 
-                # 7. 生成用户画像对象
+                # 8. 生成用户画像对象
+                data_time_range = {}
+                if start_time:
+                    data_time_range['start_time'] = start_time
+                if end_time:
+                    data_time_range['end_time'] = end_time
+                
                 user_persona = UserPersona(
                     user_id=user_id,
                     persona_tags=persona_tags,
-                    generation_time=datetime.now().isoformat()
+                    generation_time=datetime.now().isoformat(),
+                    data_time_range=data_time_range if data_time_range else None
                 )
                 
                 user_personas.append(user_persona)
@@ -232,6 +253,33 @@ class UserPersonaAlgorithm:
             filtered_missions.append(mission)
         
         return filtered_missions
+    
+    def format_output(self, 
+                      personas: List[UserPersona],
+                      start_time: str = None,
+                      end_time: str = None) -> Dict[str, Any]:
+        """
+        格式化用户画像输出为标准JSON结构
+        
+        :param personas: 用户画像列表
+        :param start_time: 数据源开始时间
+        :param end_time: 数据源结束时间
+        :return: 格式化的字典结构
+        """
+        result = {
+            "users_personas": [p.to_dict() for p in personas],
+            "statistics": {"total": len(personas)}
+        }
+        
+        # 添加数据源时间范围
+        if start_time or end_time:
+            result["data_source"] = {"time_range": {}}
+            if start_time:
+                result["data_source"]["time_range"]["start"] = start_time
+            if end_time:
+                result["data_source"]["time_range"]["end"] = end_time
+        
+        return result
     
     def _setup_logger(self) -> logging.Logger:
         """设置日志记录器"""

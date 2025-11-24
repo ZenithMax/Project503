@@ -8,22 +8,99 @@ class PersonaTagCalculator:
     def __init__(self, algorithm_config: Dict[str, Any] = None):
         """
         初始化标签计算器
-        :param algorithm_config: 算法配置字典
-            - preference_algorithm: 偏好计算算法，可选值:
-                - 'auto': 自动选择（基于数据特征智能选择）[默认]
-                    规则：HHI>0.05用percentage
-                         HHI≤0.05时根据用户数、目标数、变异系数选择tfidf/bm25/zscore
-                - 'percentage': 简单百分比Top-N
-                - 'tfidf': TF-IDF算法（多用户多目标场景）
-                - 'bm25': BM25算法（高变异场景，饱和控制）
-                - 'zscore': Z-score显著性过滤（中等规模统计检验）
-            - top_n: 输出前N个结果，默认3
-            - global_stats: 全局统计信息（用于TF-IDF/BM25）
+        
+        :param algorithm_config: 算法配置，常用参数：{
+                'preference_algorithm': 'auto',  # 算法选择：auto/percentage/tfidf/bm25/zscore
+                'top_n': 3,                      # 返回Top-N结果（通用）
+                'target_top_n': 50,              # 侦察目标占比的Top-N
+                'hhi_threshold': 0.05,           # HHI集中度阈值
+                'cv_threshold': 1.0,             # 变异系数阈值
+                'zscore_threshold': 1.0,         # Z-score阈值（用于zscore算法）
+                'tfidf_smoothing': 1.0,          # TF-IDF平滑（用于tfidf算法）
+                'bm25_k1': 1.5,                  # BM25饱和度（用于bm25算法）
+                'bm25_b': 0.75,                  # BM25归一化（用于bm25算法）
+
+                # auto模式的触发条件（仅'auto'模式需要）
+                'auto_tfidf_min_users': 10,
+                'auto_tfidf_min_targets': 20,
+                'auto_bm25_min_users': 5,
+                'auto_bm25_min_targets': 10,
+                'auto_zscore_min_targets': 5
+            }
         """
         self.algorithm_config = algorithm_config or {}
         self.preference_algorithm = self.algorithm_config.get('preference_algorithm', 'auto')
         self.top_n = self.algorithm_config.get('top_n', 3)
+        self.target_top_n = self.algorithm_config.get('target_top_n', 50)
         self.global_stats = self.algorithm_config.get('global_stats', {})
+        
+        # 算法参数
+        self.hhi_threshold = self.algorithm_config.get('hhi_threshold', 0.05)
+        self.cv_threshold = self.algorithm_config.get('cv_threshold', 1.0)
+        self.zscore_threshold = self.algorithm_config.get('zscore_threshold', 1.0)
+        self.bm25_k1 = self.algorithm_config.get('bm25_k1', 1.5)
+        self.bm25_b = self.algorithm_config.get('bm25_b', 0.75)
+        self.tfidf_smoothing = self.algorithm_config.get('tfidf_smoothing', 1.0)
+        
+        # 自动选择算法的阈值
+        self.auto_tfidf_min_users = self.algorithm_config.get('auto_tfidf_min_users', 10)
+        self.auto_tfidf_min_targets = self.algorithm_config.get('auto_tfidf_min_targets', 20)
+        self.auto_bm25_min_users = self.algorithm_config.get('auto_bm25_min_users', 5)
+        self.auto_bm25_min_targets = self.algorithm_config.get('auto_bm25_min_targets', 10)
+        self.auto_zscore_min_targets = self.algorithm_config.get('auto_zscore_min_targets', 5)
+        
+        # 参数验证
+        self._validate_params()
+    
+    def _validate_params(self):
+        """验证算法参数的合法性"""
+        # 验证算法类型
+        valid_algorithms = ['auto', 'percentage', 'tfidf', 'bm25', 'zscore']
+        if self.preference_algorithm not in valid_algorithms:
+            raise ValueError(f"preference_algorithm必须是{valid_algorithms}之一，当前值: {self.preference_algorithm}")
+        
+        # 验证top_n
+        if not isinstance(self.top_n, int) or self.top_n < 1:
+            raise ValueError(f"top_n必须是正整数，当前值: {self.top_n}")
+        
+        # 验证HHI阈值
+        if not (0 <= self.hhi_threshold <= 1):
+            raise ValueError(f"hhi_threshold必须在[0,1]范围内，当前值: {self.hhi_threshold}")
+        
+        # 验证CV阈值
+        if self.cv_threshold < 0:
+            raise ValueError(f"cv_threshold必须为非负数，当前值: {self.cv_threshold}")
+        
+        # 验证Z-score阈值
+        if self.zscore_threshold < 0:
+            raise ValueError(f"zscore_threshold必须为非负数，当前值: {self.zscore_threshold}")
+        
+        # 验证BM25参数
+        if self.bm25_k1 <= 0:
+            raise ValueError(f"bm25_k1必须为正数，当前值: {self.bm25_k1}")
+        
+        if not (0 <= self.bm25_b <= 1):
+            raise ValueError(f"bm25_b必须在[0,1]范围内，当前值: {self.bm25_b}")
+        
+        # 验证TF-IDF平滑参数
+        if self.tfidf_smoothing < 0:
+            raise ValueError(f"tfidf_smoothing必须为非负数，当前值: {self.tfidf_smoothing}")
+        
+        # 验证自动选择阈值（必须为正整数）
+        if not isinstance(self.auto_tfidf_min_users, int) or self.auto_tfidf_min_users < 1:
+            raise ValueError(f"auto_tfidf_min_users必须是正整数，当前值: {self.auto_tfidf_min_users}")
+        
+        if not isinstance(self.auto_tfidf_min_targets, int) or self.auto_tfidf_min_targets < 1:
+            raise ValueError(f"auto_tfidf_min_targets必须是正整数，当前值: {self.auto_tfidf_min_targets}")
+        
+        if not isinstance(self.auto_bm25_min_users, int) or self.auto_bm25_min_users < 1:
+            raise ValueError(f"auto_bm25_min_users必须是正整数，当前值: {self.auto_bm25_min_users}")
+        
+        if not isinstance(self.auto_bm25_min_targets, int) or self.auto_bm25_min_targets < 1:
+            raise ValueError(f"auto_bm25_min_targets必须是正整数，当前值: {self.auto_bm25_min_targets}")
+        
+        if not isinstance(self.auto_zscore_min_targets, int) or self.auto_zscore_min_targets < 1:
+            raise ValueError(f"auto_zscore_min_targets必须是正整数，当前值: {self.auto_zscore_min_targets}")
     
     def _calculate_concentration_index(self, counts: List[int]) -> Dict[str, Any]:
         """
@@ -44,8 +121,8 @@ class PersonaTagCalculator:
         proportions = [count / total for count in counts]
         hhi = sum(p ** 2 for p in proportions)
         
-        # 简化判断：只用0.05这个关键阈值
-        if hhi > 0.05:
+        # 使用配置的HHI阈值判断集中度
+        if hhi > self.hhi_threshold:
             concentration_level = "集中"
             is_concentrated = True
         else:
@@ -78,11 +155,11 @@ class PersonaTagCalculator:
         # 1. 提报需求频率标签
         persona_tags['request_frequency'] = self._calculate_request_frequency(missions)
         
-        # 2. 侦察目标占比标签
-        persona_tags['target_proportion'] = self._calculate_target_proportion(missions)
+        # 2. 偏爱侦察目标标签
+        persona_tags['preferred_targets'] = self._calculate_target_proportion(missions)
         
-        # 3. 侦察区域占比标签
-        persona_tags['region_proportion'] = self._calculate_region_proportion(missions, target_dict)
+        # 3. 偏爱侦察区域标签
+        persona_tags['preferred_regions'] = self._calculate_region_proportion(missions, target_dict)
         
         # 4. 偏爱目标类别标签
         persona_tags['preferred_target_category'] = self._calculate_target_category(missions, target_dict)
@@ -115,32 +192,33 @@ class PersonaTagCalculator:
         
         # 自动选择算法
         if algorithm == 'auto':
-            if concentration['hhi'] > 0.05:
+            if concentration['hhi'] > self.hhi_threshold:
                 # 集中度较高 -> 百分比
                 algorithm = 'percentage'
             else:
-                # HHI <= 0.05，分散数据，需要进一步区分
+                # HHI <= hhi_threshold，分散数据，需要进一步区分
                 total_users = self.global_stats.get('total_users', 0) if self.global_stats else 0
                 unique_targets = len(target_counts)
                 
                 # 检查是否有全局统计（TF-IDF和BM25需要）
-                if total_users >= 10 and unique_targets >= 20:
+                if total_users >= self.auto_tfidf_min_users and unique_targets >= self.auto_tfidf_min_targets:
                     # 多用户多目标 -> TF-IDF（识别用户特有偏好）
                     algorithm = 'tfidf'
-                elif total_users >= 5 and unique_targets >= 10:
+                elif total_users >= self.auto_bm25_min_users and unique_targets >= self.auto_bm25_min_targets:
                     # 计算变异系数判断是否需要BM25
                     import statistics
                     mean_count = statistics.mean(counts) if counts else 0
                     std_count = statistics.stdev(counts) if len(counts) > 1 else 0
+                    # 标准差与均值的比值，变异系数描述的是数据的相对波动性，即在均值的基础上，数据的离散程度有多大。
                     cv = (std_count / mean_count) if mean_count > 0 else 0
                     
-                    if cv > 1.0:
+                    if cv > self.cv_threshold:
                         # 高变异系数（数据差异大）-> BM25（饱和控制）
                         algorithm = 'bm25'
                     else:
                         # 中等变异 -> TF-IDF
                         algorithm = 'tfidf'
-                elif unique_targets >= 5:
+                elif unique_targets >= self.auto_zscore_min_targets:
                     # 目标数适中，无需全局统计 -> Z-score（统计检验）
                     algorithm = 'zscore'
                 else:
@@ -163,7 +241,7 @@ class PersonaTagCalculator:
     def _target_proportion_percentage(self, target_counts: Counter, total: int) -> List[Dict[str, Any]]:
         """算法1: 简单百分比Top-N"""
         top_targets = []
-        for target_id, count in target_counts.most_common(self.top_n):
+        for target_id, count in target_counts.most_common(self.target_top_n):
             top_targets.append({
                 'target_id': target_id,
                 'count': count,
@@ -180,12 +258,17 @@ class PersonaTagCalculator:
         mean_count = np.mean(counts)
         std_count = np.std(counts)
         
-        # 找出显著高于平均的目标（Z-score > 1.0）
+        # 边界情况：标准差为0说明所有目标使用次数完全相同
+        # 此时无法区分显著性，直接返回按次数排序的Top-N
+        if std_count == 0:
+            return self._target_proportion_percentage(target_counts, total)
+        
+        # 找出显著高于平均的目标（Z-score > zscore_threshold）
         significant_targets = []
         for target_id, count in target_counts.items():
-            z_score = (count - mean_count) / std_count if std_count > 0 else 0
+            z_score = (count - mean_count) / std_count
             
-            if z_score > 1.0:  # 高于平均1个标准差
+            if z_score > self.zscore_threshold:  # 高于平均N个标准差（可配置）
                 significant_targets.append({
                     'target_id': target_id,
                     'count': count,
@@ -202,16 +285,10 @@ class PersonaTagCalculator:
         
         # 如果有显著目标则返回，否则返回Top-N
         if significant_targets:
-            return significant_targets[:self.top_n]
+            return significant_targets[:self.target_top_n]
         else:
-            top_by_count = []
-            for target_id, count in target_counts.most_common(self.top_n):
-                top_by_count.append({
-                    'target_id': target_id,
-                    'count': count,
-                    'percentage': round(count / total * 100, 2)
-                })
-            return top_by_count
+            # 没有显著目标时，降级使用百分比算法
+            return self._target_proportion_percentage(target_counts, total)
     
     def _target_proportion_tfidf(self, target_counts: Counter, total: int) -> List[Dict[str, Any]]:
         """算法3: TF-IDF算法"""
@@ -227,9 +304,9 @@ class PersonaTagCalculator:
             # TF: 该目标在当前用户的频率
             tf = count / total
             
-            # IDF: log(总用户数 / 使用该目标的用户数)
+            # IDF: log(总用户数 / 使用该目标的用户数) + smoothing
             users_with_target = target_user_count.get(target_id, 1)
-            idf = math.log((total_users + 1) / (users_with_target + 1)) + 1
+            idf = math.log((total_users + 1) / (users_with_target + 1)) + self.tfidf_smoothing
             
             # TF-IDF得分
             tfidf_score = tf * idf
@@ -246,7 +323,7 @@ class PersonaTagCalculator:
         
         # 移除内部排序字段，统一输出格式
         result = []
-        for item in tfidf_scores[:self.top_n]:
+        for item in tfidf_scores[:self.target_top_n]:
             result.append({
                 'target_id': item['target_id'],
                 'count': item['count'],
@@ -264,9 +341,9 @@ class PersonaTagCalculator:
         total_users = self.global_stats.get('total_users', 1)
         avg_mission_count = self.global_stats.get('avg_mission_count', total)
         
-        # BM25参数
-        k1 = 1.5  # 控制TF饱和度
-        b = 0.75  # 长度归一化参数
+        # BM25参数（从配置中获取）
+        k1 = self.bm25_k1  # 控制TF饱和度
+        b = self.bm25_b    # 长度归一化参数
         
         # 计算BM25得分
         bm25_scores = []
@@ -293,7 +370,7 @@ class PersonaTagCalculator:
         
         # 移除内部排序字段，统一输出格式
         result = []
-        for item in bm25_scores[:self.top_n]:
+        for item in bm25_scores[:self.target_top_n]:
             result.append({
                 'target_id': item['target_id'],
                 'count': item['count'],
@@ -302,29 +379,35 @@ class PersonaTagCalculator:
         
         return result
     
-    def _calculate_region_proportion(self, missions: List[Any], target_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """计算侦察区域占比标签 - Top-N区域及占比"""
-        region_counts = Counter()
+    def _calculate_region_proportion(self, missions: List[Any], target_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """计算偏爱侦察区域标签 - Top-N簇ID及占比"""
+        # 从算法配置中获取预先计算的空间聚类结果
+        spatial_cluster_map = self.algorithm_config.get('spatial_cluster_map', {})
         
+        if not spatial_cluster_map:
+            return []
+        
+        # 统计用户任务涉及的簇分布
+        cluster_counts = Counter()
         for mission in missions:
-            target = target_dict.get(mission.target_id)
-            if target and hasattr(target, 'target_area_type'):
-                region_counts[target.target_area_type] += 1
+            cluster_id = spatial_cluster_map.get(mission.target_id)
+            if cluster_id is not None:
+                cluster_counts[cluster_id] += 1
         
-        total = sum(region_counts.values())
+        total = sum(cluster_counts.values())
         if total == 0:
             return []
         
-        # 计算Top-N区域及占比
-        top_regions = []
-        for region, count in region_counts.most_common(self.top_n):
-            top_regions.append({
-                'region': region,
+        # 计算Top-N簇及占比
+        top_clusters = []
+        for cluster_id, count in cluster_counts.most_common(self.top_n):
+            top_clusters.append({
+                'cluster_id': cluster_id,
                 'count': count,
                 'percentage': round(count / total * 100, 2)
             })
         
-        return top_regions
+        return top_clusters
     
     def _calculate_target_category(self, missions: List[Any], target_dict: Dict[str, Any]) -> Dict[str, Any]:
         """计算偏爱目标类别标签 - 统计target_type和target_category组合的Top-N及占比"""

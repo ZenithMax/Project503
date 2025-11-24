@@ -1,7 +1,6 @@
 class Mission:
     def __init__(self,
                  req_id: str,
-                 topic_id: str,
                  req_unit: str,
                  req_group: str,
                  req_start_time: str,
@@ -11,14 +10,15 @@ class Mission:
                  country_name: str,
                  target_priority: float,
                  is_emcon: str,
-                 is_precise: bool,
                  scout_type: str,
                  task_scene: str,
-                 resolution: float,
-                 req_cycle: str,
-                 req_cycle_time: str,
-                 req_times: int,
-                 mission_play_type: str):
+                resolution: str,
+                req_cycle: str,
+                req_cycle_time: int,
+                req_times: int,
+                 mission_plan_type: str,
+                 topic_id: str,
+                 is_precise: bool):
         """
         历史需求数据列表
         :param req_id: 需求标识号
@@ -35,14 +35,13 @@ class Mission:
         :param is_precise: 是否精确需求（True/False）
         :param scout_type: 侦察类型
         :param task_scene: 任务场景
-        :param resolution: 分辨率（0.5-1.0之间的浮点数）
+        :param resolution: 分辨率（类似"0.5-1.0"这样的区间，字符串）
         :param req_cycle: 需求周期
         :param req_cycle_time: 需求周期次数
         :param req_times: 需求次数
-        :param mission_play_type: 筹划方式
+        :param mission_plan_type: 筹划方式
         """
         self.req_id = req_id
-        self.topic_id = topic_id
         self.req_unit = req_unit
         self.req_group = req_group
         self.req_start_time = req_start_time
@@ -52,12 +51,13 @@ class Mission:
         self.country_name = country_name
         self.target_priority = target_priority
         self.is_emcon = is_emcon
-        self.is_precise = is_precise
         self.scout_type = scout_type
         self.task_scene = task_scene
         self.resolution = resolution
         self.req_cycle = req_cycle
         self.req_cycle_time = req_cycle_time
         self.req_times = req_times
-        self.mission_play_type = mission_play_type
+        self.mission_plan_type = mission_plan_type
+        self.topic_id = topic_id
+        self.is_precise = is_precise
 

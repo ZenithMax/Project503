@@ -112,7 +112,7 @@ def generate_smart_data(
     :return: (目标信息列表, 任务列表)
     """
     scale = "超大规模" if num_missions >= 100000 else "大规模" if num_missions >= 10000 else "中规模" if num_missions >= 1000 else "小规模"
-    print(f"=== 生成{scale}数据 ({num_missions:,}条) ===\n")
+    # print(f"=== 生成{scale}数据 ({num_missions:,}条) ===\n")
     
     if num_missions >= 10000:
         print("[INFO] 开始生成数据，这可能需要几分钟时间...")
@@ -264,8 +264,13 @@ def generate_smart_data(
             
             # 生成新字段数据
             req_cycle_val = random.choice(req_cycles)
-            cycle_time = random.randint(1, 5)
+            cycle_time = random.randint(1, 5)  # int 类型
             req_times_val = random.randint(1, 10)
+            
+            # 生成分辨率区间字符串（格式：最小值-最大值）
+            resolution_min = round(random.uniform(0.5, 0.8), 1)
+            resolution_max = round(random.uniform(resolution_min + 0.1, 1.0), 1)
+            resolution_str = f"{resolution_min:.1f}-{resolution_max:.1f}"  # 字符串格式的区间
             
             mission = Mission(
                 req_id=f"REQ{len(missions)+1:06d}",
@@ -282,11 +287,11 @@ def generate_smart_data(
                 is_precise=random.choice([True, False]),
                 scout_type=random.choice(scout_types),
                 task_scene=random.choice(task_scenes),
-                resolution=round(random.uniform(0.5, 1.0), 2),
+                resolution=resolution_str,  # 字符串格式的区间
                 req_cycle=req_cycle_val,
-                req_cycle_time=cycle_time,
+                req_cycle_time=cycle_time,  # int 类型
                 req_times=req_times_val,
-                mission_play_type=random.choice(mission_play_types)
+                mission_plan_type=random.choice(mission_play_types)
             )
             missions.append(mission)
             total_generated += 1

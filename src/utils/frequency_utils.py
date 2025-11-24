@@ -84,47 +84,25 @@ def _parse_cycle_interval(req_cycle: Optional[str]) -> Optional[float]:
 
 def _safe_positive_int(value: Optional[object]) -> Optional[int]:
     """安全地转换正整数。"""
-    
     try:
-        number = int(value)
+        number = int(float(value))
     except (TypeError, ValueError):
         return None
     return number if number > 0 else None
 
 
-def _build_cycle_label(req_cycle: Optional[str], req_cycle_time: Optional[object]) -> Tuple[float, str]:
+def _build_cycle_label(req_cycle: Optional[str], req_cycle_time: Optional[object]) -> Tuple[float, Optional[str]]:
     """返回 (频率值, 文字标签)。标签格式为 \"req_cycle,req_cycle_time\"（英文逗号）。"""
     
     cycle_count = _safe_positive_int(req_cycle_time)
     if not req_cycle or not cycle_count:
-        return 0.0, "无周期需求"
+        return 0.0, "None"
     
-    cycle_text = req_cycle.strip()
+    # cycle_text = req_cycle.strip()
     # 新格式：直接使用 req_cycle 和 req_cycle_time，用英文逗号分隔
-    label = f"{cycle_text},{cycle_count}"
+    label = f"{req_cycle},{cycle_count}"
     return float(cycle_count), label
 
-
-def _normalize_cycle_text(cycle_text: str) -> str:
-    """将周期文本转换为标准格式（如"1月""3周"），未知值保持原样。"""
-    
-    mapping = {
-        "一周": "1周",
-        "两周": "2周",
-        "三周": "3周",
-        "一个月": "1月",
-        "一月": "1月",
-        "两个月": "2月",
-        "两月": "2月",
-        "三个月": "3月",
-        "三月": "3月",
-        "四个月": "4月",
-        "半年": "6月",
-        "六个月": "6月",
-        "一年": "12月",
-        "两年": "24月",
-    }
-    return mapping.get(cycle_text, cycle_text)
 
 
 def _build_req_times_label(req_times: Optional[object], cycle_freq_value: float) -> Tuple[float, str]:
@@ -143,7 +121,7 @@ def _build_req_times_label(req_times: Optional[object], cycle_freq_value: float)
 class ScoutFrequencyLabels:
     """同时返回侦察周期型与侦察频次标签。"""
     
-    cycle_label: str
+    cycle_label: Optional[str]
     frequency_label: str
 
 
