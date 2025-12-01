@@ -54,12 +54,17 @@ class VirtualTaskGenerator:
         
         virtual_tasks = []
         
+        task_id_start = 56707
+        task_id_end = 63598
+        task_id_range = task_id_end - task_id_start + 1
+
         for i in range(num_tasks):
             # 随机选择目标
             target_id = random.choice(target_ids)
             
             # 生成任务ID
-            task_id = f'VTASK{i+1:04d}'
+            numeric_id = task_id_start + (i % task_id_range)
+            task_id = f'VTASK{numeric_id:05d}'
             
             # 生成时间范围
             task_start = start_dt + timedelta(

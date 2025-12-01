@@ -8,11 +8,14 @@ import json
 import sys
 import io
 import csv
+import os
 from pathlib import Path
 from collections import defaultdict
 
-# 添加项目根目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
+# 添加项目根目录到 Python 路径
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(script_dir)
+sys.path.insert(0, project_dir)
 
 # 设置输出编码
 if sys.platform == 'win32':
@@ -27,30 +30,37 @@ def load_data_from_csv():
     """从CSV文件加载数据"""
     print("\n📂 从CSV文件加载数据...")
     
+    # 使用绝对路径
+    data_dir = os.path.join(project_dir, 'data')
+    
     # 读取target.csv
     targets_dict = {}
-    with open('data/target.csv', 'r', encoding='utf-8') as f:
+    target_csv_path = os.path.join(data_dir, 'target.csv')
+    with open(target_csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             targets_dict[row['id']] = row
     
     # 读取target_trajectory.csv
     trajectories = defaultdict(list)
-    with open('data/target_trajectory.csv', 'r', encoding='utf-8') as f:
+    trajectory_csv_path = os.path.join(data_dir, 'target_trajectory.csv')
+    with open(trajectory_csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             trajectories[row['target_id']].append(row)
     
     # 读取target_group.csv
     groups_dict = {}
-    with open('data/target_group.csv', 'r', encoding='utf-8') as f:
+    group_csv_path = os.path.join(data_dir, 'target_group.csv')
+    with open(group_csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             groups_dict[row['id']] = row
     
     # 读取target_group_detail.csv
     group_details = defaultdict(list)
-    with open('data/target_group_detail.csv', 'r', encoding='utf-8') as f:
+    group_detail_csv_path = os.path.join(data_dir, 'target_group_detail.csv')
+    with open(group_detail_csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             group_details[row['target_id']].append(row['group_id'])
@@ -102,7 +112,7 @@ def load_data_from_csv():
     
     # 读取任务数据
     missions = []
-    mission_file = 'data/original_single_target_mission_concat_topic.csv'
+    mission_file = os.path.join(data_dir, 'original_single_target_mission_concat_topic.csv')
     # for i in range(1):
     try:
         with open(mission_file, 'r', encoding='utf-8') as f:
@@ -187,7 +197,10 @@ def test_user_persona(targets, missions, spatial_cluster_map, start_time, end_ti
     # 使用算法类的format_output方法格式化输出
     result = algorithm.format_output(personas, start_time, end_time)
     
-    with open('outputs/user_persona.json', 'w', encoding='utf-8') as f:
+    # 使用绝对路径保存结果
+    outputs_dir = os.path.join(project_dir, 'outputs')
+    output_file = os.path.join(outputs_dir, 'user_persona.json')
+    with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
     print("✅ 用户画像测试通过！\n")
@@ -228,7 +241,10 @@ def test_target_profile(targets, missions, spatial_cluster_map, start_time, end_
     # 使用算法类的format_output方法格式化输出
     result = algorithm.format_output(profiles, start_time, end_time)
     
-    with open('outputs/target_profile.json', 'w', encoding='utf-8') as f:
+    # 使用绝对路径保存结果
+    outputs_dir = os.path.join(project_dir, 'outputs')
+    output_file = os.path.join(outputs_dir, 'target_profile.json')
+    with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     
     print("✅ 目标画像测试通过！\n")
@@ -241,7 +257,7 @@ def main():
     print("🚀"*30)
     
     # 创建输出目录
-    Path('outputs').mkdir(exist_ok=True)
+    Path('../outputs').mkdir(exist_ok=True)
 
     targets, missions = load_data_from_csv()
 
